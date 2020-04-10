@@ -22,8 +22,22 @@ class EffectModule {
   }
 }
 
+type AsyncMethod<T, U> = (input: Promise<T>) => Promise<Action<U>>;
+type SyncMethod<T, U> = (input: Action<T>) => Action<U>;
+type ActionCreator<T, U> = (input: T) => Action<U>;
+
+type MapHelper<C> =
+  C extends AsyncMethod<any, any> ? C extends AsyncMethod<infer T, infer U> ? ActionCreator<T, U> : never :
+  C extends SyncMethod<any, any> ? C extends SyncMethod<infer T, infer U> ? ActionCreator<T, U> : never :
+  never;
+
+type Allowed = AsyncMethod<any, any> | SyncMethod<any, any>;
+type AllowedPropertyNames<T> = { [K in keyof T]: T[K] extends Allowed ? K : never }[keyof T];
+
 // 修改 Connect 的类型，让 connected 的类型变成预期的类型
-type Connect = (module: EffectModule) => any;
+type Connect = (module: EffectModule) => {
+  [k in AllowedPropertyNames<EffectModule>]: MapHelper<EffectModule[k]>
+};
 
 const connect: Connect = m => ({
   delay: (input: number) => ({
